@@ -20,6 +20,14 @@ Example:
 
 `github.com/mitsuhiko/minijinja` → `~/.cache/checkouts/github.com/mitsuhiko/minijinja`
 
+A best-effort shared-object pantry is kept at:
+
+`~/.cache/checkouts/.object-pool`
+
+It reuses Git objects by hash only; refs remain private to each checkout. The exact canonical checkout path always wins, and both ordinary `.git` directories and linked-worktree `.git` files are supported. Missing repositories use a filtered clone with the pantry as an optional reference, falling back to a plain filtered clone if the pantry is unavailable.
+
+Alternates are persistent dependencies: do not move or delete donor checkouts or the pantry, and do not aggressively prune unreachable objects from them. The pantry is not an offline mirror.
+
 ## Command
 
 ```bash
@@ -36,10 +44,13 @@ bash checkout.sh https://github.com/mitsuhiko/minijinja --path-only
 
 The script will:
 1. Parse the repo reference into host/org/repo.
-2. Clone if missing.
-3. Reuse existing checkout if present.
-4. Fetch from `origin` when stale (default interval: 300s).
-5. Attempt a fast-forward merge if the checkout is clean and has an upstream.
+2. Reuse the exact canonical checkout if it is valid; invalid existing destinations are not deleted.
+3. Register its common Git object directory with the optional shared pantry.
+4. Clone if missing using a filtered, optionally reference-assisted clone.
+5. Fetch from `origin` when stale (default interval: 300s).
+6. Attempt a fast-forward merge if the checkout is clean and has an upstream.
+
+A failed refresh of an existing checkout is reported as `fetch-failed` but remains usable and is returned. Shared objects do not share refs, and the script does not scan, migrate, repack, or prune cached repositories.
 
 ## Update strategy
 
