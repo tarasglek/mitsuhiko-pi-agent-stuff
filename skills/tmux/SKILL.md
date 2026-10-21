@@ -38,6 +38,23 @@ This must ALWAYS be printed right after a session was started and once again at 
 - Agents MUST place tmux sockets under `CLAUDE_TMUX_SOCKET_DIR` (defaults to `${TMPDIR:-/tmp}/claude-tmux-sockets`) and use `tmux -S "$SOCKET"` so we can enumerate/clean them. Create the dir first: `mkdir -p "$CLAUDE_TMUX_SOCKET_DIR"`.
 - Default socket path to use unless you must isolate further: `SOCKET="$CLAUDE_TMUX_SOCKET_DIR/claude.sock"`.
 
+## Opening a tab for the user
+
+If the user is in tmux (`$TMUX` is set) and wants something running in a tab they can use, open it in their session, not on the private agent socket:
+
+```bash
+S=$(tmux display-message -p '#S')
+tmux new-window -d -t "$S:" -n NAME -c "$PWD"
+tmux send-keys -t "$S:NAME" -l -- 'COMMAND'
+tmux send-keys -t "$S:NAME" Enter
+```
+
+Do not pass the command to `new-window` (as in `tmux new-window 'COMMAND'`), and do not wrap it in `sh -c` or `bash -c`. Either way it runs in a bare non-interactive shell that skips the user's startup files, so their PATH additions and login tokens are missing. Open an empty window, which starts the user's normal shell, and type the command into it.
+
+`-d` keeps the user's current window focused. Tell them how to switch: `tmux select-window -t "$S:NAME"`.
+
+Use the private socket only for sessions the agent drives by itself.
+
 ## Targeting panes and naming
 
 - Target format: `{session}:{window}.{pane}`, defaults to `:0.0` if omitted. Keep names short (e.g., `claude-py`, `claude-gdb`).
